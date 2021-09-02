@@ -131,3 +131,5 @@ dmypy.json
 .vscode/
 
 .gitignore
+pyproject.toml
+setup.cfg
