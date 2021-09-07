@@ -2,7 +2,9 @@
 
 import sqlite3
 from abc import ABC, abstractmethod
-from sqlvalidator import AbstractValidator, SqlValidator
+from sqlcontroller.sqlvalidator import AbstractValidator, SqlValidator
+from sqlcontroller.sqlquerybuilder import BaseSqlClause, SqliteClause
+from sqlcontroller.sqlquerybuilder import BaseSqlQueryBuilder, SqliteQueryBuilder
 
 
 class AbstractSqlController(ABC):  # pragma: no cover
@@ -50,11 +52,11 @@ class AbstractSqlController(ABC):  # pragma: no cover
         """Add new row to a table"""
 
     @abstractmethod
-    def get_row(self, table: str, where_clause: str) -> None:
+    def get_row(self, table: str, clause: BaseSqlClause) -> None:
         """Get first matching row from a table"""
 
     @abstractmethod
-    def get_rows(self, table: str, where_clause: str) -> list:
+    def get_rows(self, table: str, clause: BaseSqlClause) -> list:
         """Get all matching rows from a table"""
 
     @abstractmethod
@@ -62,13 +64,11 @@ class AbstractSqlController(ABC):  # pragma: no cover
         """Get all rows from a table"""
 
     @abstractmethod
-    def update_rows(
-        self, table: str, values: dict, where_clause: str, order, limit=-1, offset=0
-    ) -> None:
+    def update_rows(self, table: str, values: dict, clause: BaseSqlClause) -> None:
         """Modify a table's row's values"""
 
     @abstractmethod
-    def delete_rows(self, table: str, where_clause: str) -> None:
+    def delete_rows(self, table: str, clause: BaseSqlClause) -> None:
         """Remove matching rows from a table"""
 
     @abstractmethod
@@ -105,16 +105,8 @@ class _BaseSqlController(AbstractSqlController):
         query = query.format(table=table)
         return self.cursor.executemany(query, valuelists)
 
-    @staticmethod
-    def _build_add_query(values: list, columns: list = []) -> str:
-        column_str = "" if not columns else f"({','.join(columns)})"
-        qmarks = ",".join(["?"] * len(values))
 
-        query = f"insert into {{table}}{column_str} values ({qmarks})"
-        return query
-
-
-class SqlController(_BaseSqlController):
+class SqliteController(_BaseSqlController):
     """Provide methods for database, table and row handling"""
 
     def connect_db(self) -> sqlite3.Connection:
@@ -155,8 +147,8 @@ class SqlController(_BaseSqlController):
             type_, constraints = specs[0], specs[1:]
 
             self.validator.validate_type(type_)
-            for c in constraints:
-                self.validator.validate_constraint(c)
+            for con in constraints:
+                self.validator.validate_constraint(con)
 
             return (col, type_, *constraints)
 
@@ -173,26 +165,31 @@ class SqlController(_BaseSqlController):
         query = "drop table {table};"
         self._execute(query, name)
 
+    @staticmethod
+    def build_query_clauses(where: str, order: str, limit: int, offset: int) -> str:
+        """Build a query's clauses string"""
+        return SqliteQueryBuilder.build_query_clauses(where, order, limit, offset)
+
     def add_row(self, table: str, values: list, columns: list = []) -> None:
         """Add row to table"""
-        query = SqlController._build_add_query(values, columns)
+        query = SqliteQueryBuilder.build_insert_query(values, columns)
         self._execute(query, table, values)
 
     def add_rows(self, table: str, valuelists: list, columns: list = []) -> None:
         """Add multiple rows to table"""
-        query = SqlController._build_add_query(valuelists, columns)
+        query = SqliteQueryBuilder.build_insert_query(valuelists, columns)
         self._executemany(query, table, valuelists)
 
-    def get_row(self, table: str, where_clause: str) -> None:
+    def get_row(self, table: str, clause: SqliteClause) -> None:
         """Get first matching row from a table"""
-        query = f"select * from {{table}} where {where_clause}"
+        query = f"select * from {{table}} {clause}"
         self._execute(query, table)
 
         return self.cursor.fetchone()
 
-    def get_rows(self, table: str, where_clause: str) -> list:
+    def get_rows(self, table: str, clause: SqliteClause) -> None:
         """Get all matching rows from a table"""
-        query = f"select * from {{table}} where {where_clause}"
+        query = f"select * from {{table}} {clause}"
         self._execute(query, table)
 
         return self.cursor.fetchall()
@@ -203,25 +200,17 @@ class SqlController(_BaseSqlController):
         self._execute(query, table)
         return self.cursor.fetchall()
 
-    def update_rows(
-        self,
-        table: str,
-        values: dict,
-        where_clause: str,
-        order: str,
-        limit: int = -1,
-        offset: int = 0,
-    ) -> None:
+    def update_rows(self, table: str, values: dict, clause: SqliteClause) -> None:
         """Update row values in a table"""
 
         values_str = ",".join([f"{k} = {v}" for k, v in values.items()])
 
-        query = f"update {{table}} set {values_str} where {where_clause} order by {order} limit {limit} offset {offset}"
+        query = f"update {{table}} set {values_str} {clause.clause}"
         self._execute(query, table)
 
-    def delete_rows(self, table: str, where_clause: str) -> None:
+    def delete_rows(self, table: str, clause: SqliteClause) -> None:
         """Remove matching rows from a table"""
-        query = f"delete from {{table}} where {where_clause}"
+        query = f"delete from {{table}} {clause}"
         self._execute(query, table)
 
     def delete_all_rows(self, table: str) -> None:

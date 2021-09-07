@@ -1,6 +1,6 @@
-from sqlcontroller.sqlcontroller import SqlController
+from sqlcontroller.sqlcontroller import SqliteController
 
-with SqlController('test.db') as sql:
+with SqliteController('test.db') as sql:
 	columns = {
 		"hash": ("text", "primary key"),
 		"name": ("text", "not null"),

@@ -58,7 +58,7 @@ class SqlValidator(AbstractValidator):
         return hasattr(var, "__iter__")
 
     @staticmethod
-    def valid_alphanum(name, underscore: bool, space: bool) -> bool:
+    def valid_alphanum(name, underscore: bool = False, space: bool = False) -> bool:
         """Validate alphanumeric strings (with/without underscores, spaces)"""
         if underscore and space:
             pattern = SqlValidator.alphanum_underscore_space
@@ -120,7 +120,9 @@ class SqlValidator(AbstractValidator):
             raise TypeError(f"{str_} is not a string")
 
     @staticmethod
-    def validate_alphanum(str_: str, underscore: bool, space: bool) -> None:
+    def validate_alphanum(
+        str_: str, underscore: bool = False, space: bool = False
+    ) -> None:
         """Validate alphanumeric string"""
         SqlValidator.validate_str(str_)
 
