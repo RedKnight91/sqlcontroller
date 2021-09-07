@@ -1,4 +1,4 @@
-from sqlcontroller import SqlController
+from sqlcontroller.sqlcontroller import SqlController
 import pytest
 import os
 

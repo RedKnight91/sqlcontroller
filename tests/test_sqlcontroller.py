@@ -1,7 +1,7 @@
 import pytest
 import sqlite3
-from sqlcontroller import SqlController
-from sqlcontroller import InvalidAlphanumericError, InvalidSqlDataConstraintError, InvalidSqlDataTypeError
+from sqlcontroller.sqlcontroller import SqlController
+from sqlcontroller.sqlcontroller import InvalidAlphanumericError, InvalidSqlDataConstraintError, InvalidSqlDataTypeError
 
 def test_init(db):
 	sql = SqlController(db)
