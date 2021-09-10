@@ -1,3 +1,4 @@
+from sqlcontroller.sqltable import SqliteTable
 from sqlcontroller.sqlcontroller import SqliteController
 import pytest
 import os
@@ -78,7 +79,8 @@ def people_older_result():
 
 @pytest.fixture
 def sql_controller(database, table) -> SqliteController:
-    class OpenCloseController(SqliteController):
+    class SqliteControllerContext(SqliteController):
+        """Provide a handy SqliteController with context"""
         def __enter__(self):
             """Opens db connection and creates a test table"""
             super().__enter__()
@@ -93,4 +95,20 @@ def sql_controller(database, table) -> SqliteController:
 
             os.remove(database)
 
-    return OpenCloseController(database)
+    return SqliteControllerContext(database)
+
+
+@pytest.fixture
+def sql_table(table, sql_controller) -> SqliteTable:
+    class SqliteTableContext(SqliteTable):
+        """Provide a handy SqliteTable with context and a controller"""
+        def __enter__(self):
+            """Setup controller"""
+            self.controller.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            """Breakdown controller"""
+            self.controller.__exit__(*args)
+
+    return SqliteTableContext(table, sql_controller)

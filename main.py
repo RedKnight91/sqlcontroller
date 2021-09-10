@@ -16,4 +16,4 @@ with SqliteController('test.db') as sql:
         "efficiency": ("real", "not null"),
     }
 
-    sql.create_table('testTable', fields)
+    test_table = sql.create_table('testTable', fields)

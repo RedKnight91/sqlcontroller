@@ -2,7 +2,7 @@
 
 import re
 from abc import ABC
-from typing import Collection
+from typing import Collection, Iterable, Optional
 from sqlcontroller.sqlvalidator import AbstractValidator
 
 
@@ -37,12 +37,23 @@ class SqliteQueryBuilder(BaseSqlQueryBuilder):  # pylint: disable=too-few-public
         return query
 
     @staticmethod
-    def build_insert_query(fields: Collection) -> str:
+    def build_insert_query(
+        values: Collection, fields: Optional[Iterable] = None
+    ) -> str:
         """Build an insert query string"""
-        fields_str = "" if not fields else f"({','.join(fields)})"
-        qmarks = ",".join(["?"] * len(fields))
 
-        query = f"insert into {{table}} {fields_str} values ({qmarks});"
+        parts = ["insert into {table}"]
+
+        if fields:
+            fields_str = ",".join(fields)
+            parts.append(f"({fields_str})")
+
+        parts.append("values")
+
+        qmarks = ",".join(["?"] * len(values))
+        parts.append(f"({qmarks})")
+
+        query = " ".join(parts) + ";"
         return query
 
     @staticmethod

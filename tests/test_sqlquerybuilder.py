@@ -9,9 +9,13 @@ def test_build_table_create_query():
 
 def test_build_insert_query():
     fields = ("name", "age")
-    query = f"insert into {{table}} (name,age) values (?,?);"
+    values = ("Joe", 33)
 
-    assert SqliteQueryBuilder.build_insert_query(fields) == query
+    query = f"insert into {{table}} (name,age) values (?,?);"
+    assert SqliteQueryBuilder.build_insert_query(values, fields) == query
+
+    query = f"insert into {{table}} values (?,?);"
+    assert SqliteQueryBuilder.build_insert_query(values) == query
 
 def test_build_query_clauses():
     where = "where name = 'Mia'"
