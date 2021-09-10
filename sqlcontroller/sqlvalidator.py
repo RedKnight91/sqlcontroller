@@ -2,6 +2,7 @@
 
 from abc import ABC
 import re
+from typing import Any, Iterable
 
 
 class InvalidAlphanumericError(Exception):
@@ -24,6 +25,10 @@ class InvalidSqlOperandError(Exception):
     """Error for invalid SQL operands"""
 
 
+class InvalidSqlNameError(Exception):
+    """Error for invalid SQL names"""
+
+
 math_comparison = {"=", "<>", "!=", "<", ">", "<=", ">="}
 logic_comparison = {"BETWEEN", "EXISTS", "IN", "LIKE"}
 types = {"NULL", "INTEGER", "REAL", "TEXT", "BLOB"}
@@ -40,11 +45,11 @@ def is_numeric(num: str) -> bool:
         return False
 
 
-class AbstractValidator(ABC):
+class AbstractValidator(ABC):  # pylint: disable=too-few-public-methods
     """Abstract class for SQL Validators"""
 
 
-class SqlValidator(AbstractValidator):
+class SqliteValidator(AbstractValidator):
     """Validate SQL keywords, values and clauses"""
 
     alphanum = re.compile(r"[a-zA-Z0-9]+")
@@ -53,28 +58,33 @@ class SqlValidator(AbstractValidator):
     alphanum_underscore_space = re.compile(r"[a-zA-Z0-9\s_]+")
 
     @staticmethod
-    def valid_iterable(var) -> bool:
-        """Validate an iterable"""
+    def valid_iterable(var: Any) -> bool:
+        """Validate an iterable type"""
         return hasattr(var, "__iter__")
+
+    @staticmethod
+    def valid_str(var: Any) -> bool:
+        """Validate a string type"""
+        return isinstance(var, str)
 
     @staticmethod
     def valid_alphanum(name, underscore: bool = False, space: bool = False) -> bool:
         """Validate alphanumeric strings (with/without underscores, spaces)"""
         if underscore and space:
-            pattern = SqlValidator.alphanum_underscore_space
+            pattern = SqliteValidator.alphanum_underscore_space
         elif underscore:
-            pattern = SqlValidator.alphanum_underscore
+            pattern = SqliteValidator.alphanum_underscore
         elif space:
-            pattern = SqlValidator.alphanum_space
+            pattern = SqliteValidator.alphanum_space
         else:
-            pattern = SqlValidator.alphanum
+            pattern = SqliteValidator.alphanum
 
         return isinstance(name, str) and bool(re.fullmatch(pattern, name))
 
     @staticmethod
-    def valid_field(field: str) -> bool:
-        """Validate field name"""
-        return SqlValidator.valid_alphanum(field, True, False)
+    def valid_name(field: str) -> bool:
+        """Validate sql name"""
+        return SqliteValidator.valid_alphanum(field, True, False)
 
     @staticmethod
     def valid_type(name) -> bool:
@@ -87,13 +97,14 @@ class SqlValidator(AbstractValidator):
         return isinstance(name, str) and name.upper() in constraints
 
     @staticmethod
-    def valid_values(values: list) -> bool:
+    def valid_values(values: Iterable) -> bool:
         """Validate values"""
 
-        def is_valid(val) -> bool:
-            quotes = ('"', "'")
-            has_quotes = val.startswith(quotes) and val.endswith(quotes)
-            return has_quotes if isinstance(val, str) else is_numeric(val)
+        def is_valid(val: Any) -> bool:
+            try:
+                return isinstance(val, str) or is_numeric(val)
+            except TypeError:
+                return False
 
         return all(map(is_valid, values))
 
@@ -108,82 +119,89 @@ class SqlValidator(AbstractValidator):
         return bool_op.upper() in bool_operators
 
     @staticmethod
-    def validate_iterable(var) -> None:
+    def validate_iterable(var: Any) -> None:
         """Validate iterable type"""
-        if not SqlValidator.valid_iterable(var):
+        if not SqliteValidator.valid_iterable(var):
             raise TypeError(f"{var} is not iterable")
 
     @staticmethod
-    def validate_str(str_: str) -> None:
+    def validate_str(var: Any) -> None:
         """Validate string type"""
-        if not isinstance(str_, str):
-            raise TypeError(f"{str_} is not a string")
+        if not SqliteValidator.valid_str(var):
+            raise TypeError(f"{var} is not a string")
 
     @staticmethod
     def validate_alphanum(
         str_: str, underscore: bool = False, space: bool = False
     ) -> None:
         """Validate alphanumeric string"""
-        SqlValidator.validate_str(str_)
+        SqliteValidator.validate_str(str_)
 
-        if not SqlValidator.valid_alphanum(str_, underscore, space):
+        if not SqliteValidator.valid_alphanum(str_, underscore, space):
             error = f"Not alphanumeric: {str_}"
             raise InvalidAlphanumericError(error)
 
     @staticmethod
-    def validate_field(field: str) -> None:
+    def validate_table_name(name: str) -> None:
         """Validate field name"""
-        if not SqlValidator.valid_field(field):
-            error = f"{field} is not a valid clause field operand."
+        if not SqliteValidator.valid_name(name):
+            error = f"{name} is not a valid table name."
+            raise InvalidSqlNameError(error)
+
+    @staticmethod
+    def validate_field_name(field: str) -> None:
+        """Validate field name"""
+        if not SqliteValidator.valid_name(field):
+            error = f"{field} is not a valid field name."
             raise InvalidSqlOperandError(error)
 
     @staticmethod
     def validate_type(name) -> None:
         """Validate field type"""
-        SqlValidator.validate_str(name)
+        SqliteValidator.validate_str(name)
 
-        if not SqlValidator.valid_type(name):
-            error = f"{name} is not a valid data type."
+        if not SqliteValidator.valid_type(name):
+            error = f"{name} is not a valid field type."
             raise InvalidSqlDataTypeError(error)
 
     @staticmethod
     def validate_constraint(name) -> None:
         """Validate field constraint"""
-        SqlValidator.validate_str(name)
+        SqliteValidator.validate_str(name)
 
         name = name.upper()
 
-        if not SqlValidator.valid_constraint(name):
-            error = f"{name} is not a valid data constraint."
+        if not SqliteValidator.valid_constraint(name):
+            error = f"{name} is not a valid field constraint."
             raise InvalidSqlDataConstraintError(error)
 
     @staticmethod
     def validate_values(values: str) -> None:
         """Validate field values"""
-        if not SqlValidator.valid_values(values):
+        if not SqliteValidator.valid_values(values):
             error = f"{values} is not a valid clause values operand."
             raise InvalidSqlOperandError(error)
 
     @staticmethod
     def validate_comparison_operator(comp_op) -> None:
         """Validate clause comparison operator"""
-        if not SqlValidator.valid_comparison_operator(comp_op):
+        if not SqliteValidator.valid_comparison_operator(comp_op):
             error = f"{comp_op} is not a valid comparison operator."
             raise InvalidSqlOperatorError(error)
 
     @staticmethod
     def validate_bool_operator(bool_op) -> None:
         """Validate clause boolean operator"""
-        if not SqlValidator.valid_bool_operator(bool_op):
+        if not SqliteValidator.valid_bool_operator(bool_op):
             error = f"{bool_op} is not a valid boolean operator."
             raise InvalidSqlOperatorError(error)
 
     @staticmethod
     def validate_condition(field: str, operator: str, values: str) -> None:
         """Validate clause condition"""
-        SqlValidator.validate_field(field)
-        SqlValidator.validate_comparison_operator(operator)
-        SqlValidator.validate_values(values)
+        SqliteValidator.validate_field_name(field)
+        SqliteValidator.validate_comparison_operator(operator)
+        SqliteValidator.validate_values(values)
 
     # @staticmethod
     # def validate_where_clause(clause) -> None:
@@ -211,7 +229,7 @@ class SqlValidator(AbstractValidator):
     #         get_bool_operators()
 
     #     for con in found_conditions:
-    #         SqlValidator.validate_condition(*con)
+    #         SqliteValidator.validate_condition(*con)
 
     #     for bool_op in found_bools:
-    #         SqlValidator.validate_bool_operator(bool_op)
+    #         SqliteValidator.validate_bool_operator(bool_op)

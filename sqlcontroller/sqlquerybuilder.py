@@ -1,42 +1,71 @@
 """Build SQL queries"""
 
+import re
 from abc import ABC
+from typing import Collection
+from sqlcontroller.sqlvalidator import AbstractValidator
 
 
-class BaseSqlClause(ABC):
-    """Abstract query clause"""
-
-
-class SqliteClause(BaseSqlClause):
-    """Store a query clause string"""
-
-    def __init__(self, clause: str) -> None:
-        self.clause = clause
-
-
-class BaseSqlQueryBuilder(ABC):
+class BaseSqlQueryBuilder(ABC):  # pylint: disable=too-few-public-methods
     """Abstract query builder"""
 
 
-class SqliteQueryBuilder(BaseSqlQueryBuilder):
+class SqliteQueryBuilder(BaseSqlQueryBuilder):  # pylint: disable=too-few-public-methods
     """Build Sqlite query strings"""
 
     @staticmethod
-    def build_insert_query(values: list, columns: list = []) -> str:
-        """Build an insert query string"""
-        column_str = "" if not columns else f"({','.join(columns)})"
-        qmarks = ",".join(["?"] * len(values))
+    def build_table_create_query(validator: AbstractValidator, fields: dict) -> str:
+        """Build a create table query"""
 
-        query = f"insert into {{table}}{column_str} values ({qmarks})"
+        def parse_field(col, specs):
+            validator.validate_iterable(specs)
+
+            type_, constraints = specs[0], specs[1:]
+
+            validator.validate_type(type_)
+            for con in constraints:
+                validator.validate_constraint(con)
+
+            return (col, type_, *constraints)
+
+        fields_strs = [
+            " ".join(parse_field(col, specs)) for col, specs in fields.items()
+        ]
+        fields_str = ", ".join(fields_strs)
+
+        query = f"create table if not exists {{table}} ({fields_str});"
         return query
 
     @staticmethod
-    def build_query_clauses(where: str, order: str = '', limit: int = 0, offset: int = 0) -> str:
-        """Build a query's clauses string"""
-        where_str = f"where {where}" if where else ""
-        order_str = f"order by {order}" if order else ""
-        limit_str = f"limit {limit}" if limit else ""
-        offset_str = f"offset {offset}" if offset else ""
+    def build_insert_query(fields: Collection) -> str:
+        """Build an insert query string"""
+        fields_str = "" if not fields else f"({','.join(fields)})"
+        qmarks = ",".join(["?"] * len(fields))
 
-        clause = "".join([where_str, order_str, limit_str, offset_str])
-        return SqliteClause(clause)
+        query = f"insert into {{table}} {fields_str} values ({qmarks});"
+        return query
+
+    @staticmethod
+    def build_query_clauses(
+        where: str, order: str = "", limit: int = 0, offset: int = 0
+    ) -> str:
+        """Build a query's clauses string"""
+
+        where = re.sub("^where ", "", where, flags=re.IGNORECASE)
+        order = re.sub("^order by ", "", order, flags=re.IGNORECASE)
+
+        parts = []
+        if where:
+            parts.append(f"where {where};")
+
+        if order:
+            parts.append(f"order by {order};")
+
+        if limit:
+            parts.append(f"limit {limit};")
+
+        if offset:
+            parts.append(f"offset {offset};")
+
+        clause = " ".join(parts)
+        return clause

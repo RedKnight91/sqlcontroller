@@ -2,9 +2,9 @@
 
 import sqlite3
 from abc import ABC, abstractmethod
-from sqlcontroller.sqlvalidator import AbstractValidator, SqlValidator
-from sqlcontroller.sqlquerybuilder import BaseSqlClause, SqliteClause
-from sqlcontroller.sqlquerybuilder import BaseSqlQueryBuilder, SqliteQueryBuilder
+from typing import Any, Collection, Iterable
+from sqlcontroller.sqlvalidator import AbstractValidator, SqliteValidator
+from sqlcontroller.sqlquerybuilder import SqliteQueryBuilder
 
 
 class AbstractSqlController(ABC):  # pragma: no cover
@@ -40,7 +40,7 @@ class AbstractSqlController(ABC):  # pragma: no cover
         """Get database cursor"""
 
     @abstractmethod
-    def create_table(self, name: str, columns: dict) -> None:
+    def create_table(self, name: str, fields: dict) -> None:
         """Add new table to a database"""
 
     @abstractmethod
@@ -48,15 +48,21 @@ class AbstractSqlController(ABC):  # pragma: no cover
         """Remove a table from a database"""
 
     @abstractmethod
-    def add_row(self, table: str, values: list, columns: list = []) -> None:
+    def add_row(self, table: str, values: Iterable, fields: Collection) -> None:
         """Add new row to a table"""
 
     @abstractmethod
-    def get_row(self, table: str, clause: BaseSqlClause) -> None:
+    def add_rows(
+        self, table: str, valuelists: Iterable[Iterable], fields: Collection
+    ) -> None:
+        """Add new row to a table"""
+
+    @abstractmethod
+    def get_row(self, table: str, clause: str) -> None:
         """Get first matching row from a table"""
 
     @abstractmethod
-    def get_rows(self, table: str, clause: BaseSqlClause) -> list:
+    def get_rows(self, table: str, clause: str) -> list:
         """Get all matching rows from a table"""
 
     @abstractmethod
@@ -64,11 +70,11 @@ class AbstractSqlController(ABC):  # pragma: no cover
         """Get all rows from a table"""
 
     @abstractmethod
-    def update_rows(self, table: str, values: dict, clause: BaseSqlClause) -> None:
+    def update_rows(self, table: str, values: dict, clause: str) -> None:
         """Modify a table's row's values"""
 
     @abstractmethod
-    def delete_rows(self, table: str, clause: BaseSqlClause) -> None:
+    def delete_rows(self, table: str, clause: str) -> None:
         """Remove matching rows from a table"""
 
     @abstractmethod
@@ -79,10 +85,11 @@ class AbstractSqlController(ABC):  # pragma: no cover
 class _BaseSqlController(AbstractSqlController):
     """Provide generic functionality for an SQL controller"""
 
+    connection: sqlite3.Connection
+    cursor: sqlite3.Cursor
+
     def __init__(self, database):
         self.database = database
-        self.connection = self.cursor = None
-        self.validator = SqlValidator()
 
     def __enter__(self) -> "_BaseSqlController":
         self.connection = self.connect_db()
@@ -93,21 +100,21 @@ class _BaseSqlController(AbstractSqlController):
         self.save_db()
         self.disconnect_db()
 
-    def _execute(self, query: str, table: str = None, values: list = []) -> None:
-        self.validator.validate_alphanum(table, True, False)
+    def _execute(self, query: str, table: str = None, values: Iterable = []) -> Any:
         query = query.format(table=table)
         return self.cursor.execute(query, values)
 
     def _executemany(
-        self, query: str, table: str = None, valuelists: list = []
-    ) -> None:
-        self.validator.validate_alphanum(table, True, False)
+        self, query: str, table: str = None, valuelists: Iterable = []
+    ) -> Any:
         query = query.format(table=table)
         return self.cursor.executemany(query, valuelists)
 
 
 class SqliteController(_BaseSqlController):
     """Provide methods for database, table and row handling"""
+
+    validator: SqliteValidator = SqliteValidator()
 
     def connect_db(self) -> sqlite3.Connection:
         """Connect to a database (create if non-existent)"""
@@ -116,9 +123,9 @@ class SqliteController(_BaseSqlController):
 
     def disconnect_db(self) -> None:
         """Clear database connection"""
-        self.cursor = None
         self.connection.close()
-        self.connection = None
+        del self.connection
+        del self.cursor
 
     def save_db(self) -> None:
         """Save changes to a database"""
@@ -132,32 +139,17 @@ class SqliteController(_BaseSqlController):
     def has_table(self, name: str) -> bool:
         """Check if table exists"""
         try:
-            self._execute("select * from {table}", name)
+            self._execute("select * from {table} limit 1", name)
             return True
         except sqlite3.OperationalError:
             return False
 
-    def create_table(self, name: str, columns: dict) -> None:
+    def create_table(self, name: str, fields: dict) -> None:
         """Create a new table
-        columns: {name: (type, constraint, constraint, ...), name: (...), ...}"""
+        fields: {name: (type, constraint, constraint, ...), name: (...), ...}"""
 
-        def parse_column(col, specs):
-            self.validator.validate_iterable(specs)
-
-            type_, constraints = specs[0], specs[1:]
-
-            self.validator.validate_type(type_)
-            for con in constraints:
-                self.validator.validate_constraint(con)
-
-            return (col, type_, *constraints)
-
-        column_strs = [
-            " ".join(parse_column(col, specs)) for col, specs in columns.items()
-        ]
-        columns_str = ", ".join(column_strs)
-
-        query = f"create table if not exists {{table}} ({columns_str});"
+        self.validator.validate_table_name(name)
+        query = SqliteQueryBuilder.build_table_create_query(self.validator, fields)
         self._execute(query, name)
 
     def delete_table(self, name: str) -> None:
@@ -166,54 +158,61 @@ class SqliteController(_BaseSqlController):
         self._execute(query, name)
 
     @staticmethod
-    def build_query_clauses(where: str, order: str, limit: int, offset: int) -> str:
+    def build_query_clauses(
+        where: str, order: str = "", limit: int = 0, offset: int = 0
+    ) -> str:
         """Build a query's clauses string"""
         return SqliteQueryBuilder.build_query_clauses(where, order, limit, offset)
 
-    def add_row(self, table: str, values: list, columns: list = []) -> None:
+    def add_row(self, table: str, values: Iterable, fields: Collection) -> None:
         """Add row to table"""
-        query = SqliteQueryBuilder.build_insert_query(values, columns)
+        query = SqliteQueryBuilder.build_insert_query(fields)
         self._execute(query, table, values)
 
-    def add_rows(self, table: str, valuelists: list, columns: list = []) -> None:
+    def add_rows(
+        self, table: str, valuelists: Iterable[Iterable], fields: Collection
+    ) -> None:
         """Add multiple rows to table"""
-        query = SqliteQueryBuilder.build_insert_query(valuelists, columns)
+        query = SqliteQueryBuilder.build_insert_query(fields)
         self._executemany(query, table, valuelists)
 
-    def get_row(self, table: str, clause: SqliteClause) -> None:
+    def get_row(self, table: str, clause: str) -> Any:
         """Get first matching row from a table"""
         query = f"select * from {{table}} {clause}"
         self._execute(query, table)
 
+        # TODO check fetchone value
         return self.cursor.fetchone()
 
-    def get_rows(self, table: str, clause: SqliteClause) -> None:
+    def get_rows(self, table: str, clause: str) -> Any:
         """Get all matching rows from a table"""
         query = f"select * from {{table}} {clause}"
         self._execute(query, table)
 
+        # TODO check fetchall value
         return self.cursor.fetchall()
 
     def get_all_rows(self, table: str) -> list:
         """Get all rows from a table"""
-        query = "select * from {{table}}"
+        query = "select * from {table}"
         self._execute(query, table)
         return self.cursor.fetchall()
 
-    def update_rows(self, table: str, values: dict, clause: SqliteClause) -> None:
+    def update_rows(self, table: str, values: dict, clause: str = None) -> None:
         """Update row values in a table"""
 
         values_str = ",".join([f"{k} = {v}" for k, v in values.items()])
 
-        query = f"update {{table}} set {values_str} {clause.clause}"
+        clause = clause if clause else str()
+        query = f"update {table} set {values_str} {clause}"
         self._execute(query, table)
 
-    def delete_rows(self, table: str, clause: SqliteClause) -> None:
+    def delete_rows(self, table: str, clause: str) -> None:
         """Remove matching rows from a table"""
         query = f"delete from {{table}} {clause}"
         self._execute(query, table)
 
     def delete_all_rows(self, table: str) -> None:
         """Remove all matching rows from a table"""
-        query = "delete from {{table}}"
+        query = "delete from {table}"
         self._execute(query, table)
