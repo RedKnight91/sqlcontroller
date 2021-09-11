@@ -12,8 +12,10 @@ def test_build_table_create_query():
         Field("name", "integer", ["primary key"]),
         Field("age", "integer", ["not null", "unique"]),
     ]
-    query = "create table if not exists {table} "\
-            "(name integer primary key, age integer not null unique);"
+    query = (
+        "create table if not exists {table} "
+        "(name integer primary key, age integer not null unique);"
+    )
     assert SqliteQueryBuilder.build_table_create_query(fields) == query
 
 

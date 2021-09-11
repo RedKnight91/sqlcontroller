@@ -107,24 +107,24 @@ def test_validate_field_error():
         SqliteValidator.validate_field(Field("name", "string", ["unique"]))
 
 
-def test_validate_table_params(table, field, fields):
-    SqliteValidator.validate_table_params(table, field)
-    SqliteValidator.validate_table_params(table, fields)
+def test_validate_table_params(table_name, field, fields):
+    SqliteValidator.validate_table_params(table_name, field)
+    SqliteValidator.validate_table_params(table_name, fields)
 
 
-def test_validate_table_params_errors(table, fields):
+def test_validate_table_params_errors(table_name, fields):
     with pytest.raises(InvalidSqlNameError):
         SqliteValidator.validate_table_params("_invalid table name_", fields)
 
     with pytest.raises(InvalidSqlFieldError):
-        SqliteValidator.validate_table_params(table, "name")
+        SqliteValidator.validate_table_params(table_name, "name")
 
     with pytest.raises(InvalidSqlFieldError):
-        SqliteValidator.validate_table_params(table, ["name", "age"])
+        SqliteValidator.validate_table_params(table_name, ["name", "age"])
 
     with pytest.raises(InvalidSqlFieldError):
         SqliteValidator.validate_table_params(
-            table, [Field("name", "string", "unique")]
+            table_name, [Field("name", "string", "unique")]
         )
 
 

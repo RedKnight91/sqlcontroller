@@ -29,10 +29,10 @@ def test_contextmanager(database):
     assert not hasattr(sql, "cursor")
 
 
-def test_execute(sql_controller, table, person_data):
+def test_execute(sql_controller, table_name, person_data):
     with sql_controller as sql:
-        sql.execute("insert into {table} values (?,?,?)", table, person_data)
-        rows = sql.execute("select * from {table}", table)
+        sql.execute("insert into {table} values (?,?,?)", table_name, person_data)
+        rows = sql.execute("select * from {table}", table_name)
         assert list(rows) == [person_data]
 
 
@@ -42,23 +42,25 @@ def test_execute_fail(sql_controller):
             sql.execute("select from {table}", "NoTable")
 
 
-def test_executemany(sql_controller, table, people_data):
+def test_executemany(sql_controller, table_name, people_data):
     with sql_controller as sql:
-        sql.executemany("insert into {table} values (?,?,?)", table, people_data)
-        rows = sql.execute("select * from {table}", table)
+        sql.executemany("insert into {table} values (?,?,?)", table_name, people_data)
+        rows = sql.execute("select * from {table}", table_name)
         assert list(rows) == people_data
 
 
-def test_executemany_fail(sql_controller, table, person_data):
+def test_executemany_fail(sql_controller, table_name, person_data):
     with sql_controller as sql:
         with pytest.raises(sqlite3.ProgrammingError):
-            sql.executemany("insert into {table} values (?,?,?)", table, [])
+            sql.executemany("insert into {table} values (?,?,?)", table_name, [])
 
         with pytest.raises(sqlite3.ProgrammingError):
-            sql.executemany("insert into {table} values (?,?,?)", table, "Joe")
+            sql.executemany("insert into {table} values (?,?,?)", table_name, "Joe")
 
         with pytest.raises(sqlite3.ProgrammingError):
-            sql.executemany("insert into {table} values (?,?,?)", table, person_data)
+            sql.executemany(
+                "insert into {table} values (?,?,?)", table_name, person_data
+            )
 
 
 def test_connect_db(sql_controller):
@@ -75,28 +77,28 @@ def test_disconnect_db(sql_controller):
         assert not hasattr(sql, "cursor")
 
 
-def test_save_db(sql_controller, table, person_fields, person_data):
+def test_save_db(sql_controller, table_name, person_fields, person_data):
     with sql_controller as sql:
-        sqltable = sql.get_table(table)
+        sqltable = sql.get_table(table_name)
         sqltable.add_row(person_data, person_fields)
         sql.save_db()
 
         sql.connection.close()
         sql.__enter__()
 
-        rows = sql.cursor.execute(f"select * from {table}")
+        rows = sql.cursor.execute(f"select * from {table_name}")
         assert list(rows) == [person_data]
 
 
-def test_not_save_db(sql_controller, table, person_fields, person_data):
+def test_not_save_db(sql_controller, table_name, person_fields, person_data):
     with sql_controller as sql:
-        sqltable = sql.get_table(table)
+        sqltable = sql.get_table(table_name)
         sqltable.add_row(person_data, person_fields)
 
         sql.connection.close()
         sql.__enter__()
 
-        rows = sql.cursor.execute(f"select * from {table}")
+        rows = sql.cursor.execute(f"select * from {table_name}")
         assert list(rows) == []
 
 
@@ -107,9 +109,9 @@ def test_get_cursor(sql_controller):
         assert cursor is sql.cursor
 
 
-def test_has_table(sql_controller, table):
+def test_has_table(sql_controller, table_name):
     with sql_controller as sql:
-        assert sql.has_table(table)
+        assert sql.has_table(table_name)
 
 
 def test_has_table_false(sql_controller):
@@ -156,9 +158,9 @@ def test_create_table_fail_fields(sql_controller):
         assert not sql.has_table(table)
 
 
-def test_get_table(sql_controller, table):
+def test_get_table(sql_controller, table_name):
     with sql_controller as sql:
-        tbl = sql.get_table(table)
+        tbl = sql.get_table(table_name)
         assert isinstance(tbl, SqliteTable)
 
 
@@ -174,7 +176,7 @@ def test_get_table_errors(
             sql.get_table("nonexistent")
 
 
-def test_delete_table(sql_controller, table):
+def test_delete_table(sql_controller, table_name):
     with sql_controller as sql:
-        sql.delete_table(table)
-        assert not sql.has_table(table)
+        sql.delete_table(table_name)
+        assert not sql.has_table(table_name)

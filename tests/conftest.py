@@ -16,7 +16,7 @@ def database():
 
 
 @pytest.fixture
-def table():
+def table_name():
     return "TestTable"
 
 
@@ -99,15 +99,17 @@ def people_older_result():
 
 
 @pytest.fixture
-def sql_controller(database, table) -> SqliteController:
+def sql_controller(database, table_name) -> SqliteController:
     class SqliteControllerContext(SqliteController):
         """Provide a handy SqliteController with context"""
 
         def __enter__(self):
             """Opens db connection and creates a test table"""
             super().__enter__()
-            query = f"create table if not exists {table} "\
-                    "(id text primary key, name text not null, age integer)"
+            query = (
+                f"create table if not exists {table_name} "
+                "(id text primary key, name text not null, age integer)"
+            )
             self.cursor.execute(query)
             return self
 
@@ -122,7 +124,7 @@ def sql_controller(database, table) -> SqliteController:
 
 
 @pytest.fixture
-def sql_table(table, sql_controller) -> SqliteTable:
+def sql_table(table_name, sql_controller) -> SqliteTable:
     class SqliteTableContext(SqliteTable):
         """Provide a handy SqliteTable with context and a controller"""
 
@@ -135,4 +137,4 @@ def sql_table(table, sql_controller) -> SqliteTable:
             """Breakdown controller"""
             self.controller.__exit__(*args)
 
-    return SqliteTableContext(table, sql_controller)
+    return SqliteTableContext(table_name, sql_controller)
