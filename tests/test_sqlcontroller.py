@@ -1,7 +1,13 @@
-from sqlcontroller.sqlvalidator import InvalidSqlNameError
-import pytest
+"""Test sqlcontroller module"""
+
 import sqlite3
-from sqlcontroller.sqlcontroller import SqliteController
+import pytest
+from sqlcontroller.sqlcontroller import NonExistentTableError, SqliteController
+from sqlcontroller.sqltable import SqliteTable
+from sqlcontroller.sqlfield import Field
+from sqlcontroller.sqlvalidator import InvalidSqlFieldError, InvalidSqlNameError
+
+# pylint: disable=missing-function-docstring
 
 
 def test_init(database):
@@ -114,16 +120,58 @@ def test_has_table_false(sql_controller):
 def test_create_table(sql_controller):
     with sql_controller as sql:
         table = "MyNewTable"
-        sql.create_table(table, {"name": ("text", "primary key"), "age": ("integer", "not null")})
+        name = Field("name", "text", ["primary key"])
+        age = Field("age", "integer", ["not null"])
+
+        tbl = sql.create_table(table, [name, age])
+        assert isinstance(tbl, SqliteTable)
         assert sql.has_table(table)
 
-def test_create_table_fail(sql_controller):
+
+def test_create_table_fail_name(sql_controller):
     with sql_controller as sql:
         table = "_invalid table name_"
         with pytest.raises(InvalidSqlNameError):
-            sql.create_table(table, {"name": ("text",), "age": ("integer",)})
+            id_ = Field("ID", "text", ["primary key"])
+            sql.create_table(table, [id_])
 
         assert not sql.has_table(table)
+
+
+def test_create_table_fail_fields(sql_controller):
+    with sql_controller as sql:
+        table = "new"
+        with pytest.raises(InvalidSqlFieldError):
+            id_ = Field("I. D.", "text", ["unique"])
+            sql.create_table(table, [id_])
+
+        with pytest.raises(InvalidSqlFieldError):
+            id_ = Field("ID", "string", ["unique"])
+            sql.create_table(table, [id_])
+
+        with pytest.raises(InvalidSqlFieldError):
+            id_ = Field("ID", "text", ["none"])
+            sql.create_table(table, [id_])
+
+        assert not sql.has_table(table)
+
+
+def test_get_table(sql_controller, table):
+    with sql_controller as sql:
+        tbl = sql.get_table(table)
+        assert isinstance(tbl, SqliteTable)
+
+
+def test_get_table_errors(
+    sql_controller,
+):
+    with pytest.raises(InvalidSqlNameError):
+        with sql_controller as sql:
+            sql.get_table("_invalid table name_")
+
+    with pytest.raises(NonExistentTableError):
+        with sql_controller as sql:
+            sql.get_table("nonexistent")
 
 
 def test_delete_table(sql_controller, table):

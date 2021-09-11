@@ -6,6 +6,7 @@ from typing import Any, Iterable, Optional
 from sqlcontroller.sqlvalidator import AbstractValidator, SqliteValidator
 from sqlcontroller.sqlquerybuilder import SqliteQueryBuilder
 from sqlcontroller.sqltable import DbTable, SqliteTable
+from sqlcontroller.sqlfield import Field
 
 
 class NonExistentTableError(Exception):
@@ -60,7 +61,7 @@ class AbstractSqlController(ABC):  # pragma: no cover
         """Execute sql query with many value sets"""
 
     @abstractmethod
-    def create_table(self, name: str, fields: dict) -> DbTable:
+    def create_table(self, name: str, fields: Iterable[Field]) -> DbTable:
         """Add new table to a database"""
 
     @abstractmethod
@@ -143,12 +144,12 @@ class SqliteController(BaseSqlController):
         except sqlite3.OperationalError:
             return False
 
-    def create_table(self, name: str, fields: dict) -> SqliteTable:
-        """Create a new table
-        fields: {name: (type, constraint, constraint, ...), name: (...), ...}"""
+    def create_table(self, name: str, fields: Iterable[Field]) -> SqliteTable:
+        """Create a new table"""
 
-        self.validator.validate_table_name(name)
-        query = SqliteQueryBuilder.build_table_create_query(self.validator, fields)
+        self.validator.validate_table_params(name, fields)
+
+        query = SqliteQueryBuilder.build_table_create_query(fields)
         self.execute(query, name)
         return SqliteTable(name, self)
 

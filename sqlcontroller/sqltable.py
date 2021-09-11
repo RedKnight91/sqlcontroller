@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Collection, Iterable, TYPE_CHECKING, Optional, Sequence
 from sqlcontroller.sqlquerybuilder import SqliteQueryBuilder
+from sqlcontroller.sqlfield import Field
 
 if TYPE_CHECKING:
     from sqlcontroller.sqlcontroller import AbstractSqlController, SqliteController
@@ -23,12 +24,14 @@ class DbTable(ABC):
         self.controller.executemany(query, self.name, valuelists)
 
     @abstractmethod
-    def add_row(self, values: Collection, fields: Optional[Iterable] = None) -> None:
+    def add_row(
+        self, values: Collection, fields: Optional[Iterable[Field]] = None
+    ) -> None:
         """Add new row to a table"""
 
     @abstractmethod
     def add_rows(
-        self, valuelists: Sequence[Collection], fields: Optional[Iterable] = None
+        self, valuelists: Sequence[Collection], fields: Optional[Iterable[Field]] = None
     ) -> None:
         """Add new row to a table"""
 
@@ -66,13 +69,15 @@ class SqliteTable(DbTable):
         self.name = name
         self.controller = controller
 
-    def add_row(self, values: Collection, fields: Optional[Iterable] = None) -> None:
+    def add_row(
+        self, values: Collection, fields: Optional[Iterable[Field]] = None
+    ) -> None:
         """Add row to table"""
         query = SqliteQueryBuilder.build_insert_query(values, fields)
         self._execute(query, values)
 
     def add_rows(
-        self, valuelists: Sequence[Collection], fields: Optional[Iterable] = None
+        self, valuelists: Sequence[Collection], fields: Optional[Iterable[Field]] = None
     ) -> None:
         """Add multiple rows to table"""
         query = SqliteQueryBuilder.build_insert_query(valuelists[0], fields)

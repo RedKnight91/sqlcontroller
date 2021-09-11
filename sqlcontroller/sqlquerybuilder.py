@@ -3,7 +3,7 @@
 import re
 from abc import ABC
 from typing import Collection, Iterable, Optional
-from sqlcontroller.sqlvalidator import AbstractValidator
+from sqlcontroller.sqlfield import Field
 
 
 class BaseSqlQueryBuilder(ABC):  # pylint: disable=too-few-public-methods
@@ -14,23 +14,10 @@ class SqliteQueryBuilder(BaseSqlQueryBuilder):  # pylint: disable=too-few-public
     """Build Sqlite query strings"""
 
     @staticmethod
-    def build_table_create_query(validator: AbstractValidator, fields: dict) -> str:
+    def build_table_create_query(fields: Iterable[Field]) -> str:
         """Build a create table query"""
 
-        def parse_field(col, specs):
-            validator.validate_iterable(specs)
-
-            type_, constraints = specs[0], specs[1:]
-
-            validator.validate_type(type_)
-            for con in constraints:
-                validator.validate_constraint(con)
-
-            return (col, type_, *constraints)
-
-        fields_strs = [
-            " ".join(parse_field(col, specs)) for col, specs in fields.items()
-        ]
+        fields_strs = [" ".join([f.name, f.type, *f.constraints]) for f in fields]
         fields_str = ", ".join(fields_strs)
 
         query = f"create table if not exists {{table}} ({fields_str});"

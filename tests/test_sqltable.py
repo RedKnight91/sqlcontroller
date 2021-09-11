@@ -1,5 +1,11 @@
-import pytest
+"""Test sqltable module"""
+
 import sqlite3
+import pytest
+
+# pylint: disable=missing-function-docstring
+# pytest: disable=too-many-arguments
+
 
 def test_add_row(sql_table, person_fields, person_data):
     with sql_table as table:
@@ -39,7 +45,7 @@ def test_get_all_rows(sql_table, person_fields, people_data):
 def test_update_rows(
     sql_table, person_fields, people_data, age_increment, people_data_older
 ):
-   with sql_table as table:
+    with sql_table as table:
         table.add_rows(people_data, person_fields)
         table.update_rows(age_increment)
 

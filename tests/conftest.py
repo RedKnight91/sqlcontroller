@@ -1,7 +1,13 @@
+"""Provide fixtures for testing"""
+
+import os
+import pytest
 from sqlcontroller.sqltable import SqliteTable
 from sqlcontroller.sqlcontroller import SqliteController
-import pytest
-import os
+from sqlcontroller.sqlfield import Field
+
+# pylint: disable=missing-function-docstring
+# pylint: disable=redefined-outer-name
 
 
 @pytest.fixture
@@ -15,8 +21,23 @@ def table():
 
 
 @pytest.fixture
+def fields():
+    return [
+        Field("id", "text", ["primary key"]),
+        Field("name", "text", ["not null", "unique"]),
+        Field("age", "integer", ["not null"]),
+    ]
+
+
+@pytest.fixture
+def field():
+    return Field("id", "text", ["primary key"])
+
+
+@pytest.fixture
 def person_fields():
     return ("id", "name", "age")
+
 
 @pytest.fixture
 def person_data():
@@ -81,10 +102,12 @@ def people_older_result():
 def sql_controller(database, table) -> SqliteController:
     class SqliteControllerContext(SqliteController):
         """Provide a handy SqliteController with context"""
+
         def __enter__(self):
             """Opens db connection and creates a test table"""
             super().__enter__()
-            query = f"create table if not exists {table} (id text primary key, name text not null, age integer)"
+            query = f"create table if not exists {table} "\
+                    "(id text primary key, name text not null, age integer)"
             self.cursor.execute(query)
             return self
 
@@ -102,6 +125,7 @@ def sql_controller(database, table) -> SqliteController:
 def sql_table(table, sql_controller) -> SqliteTable:
     class SqliteTableContext(SqliteTable):
         """Provide a handy SqliteTable with context and a controller"""
+
         def __enter__(self):
             """Setup controller"""
             self.controller.__enter__()
