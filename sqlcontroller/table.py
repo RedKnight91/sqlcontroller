@@ -2,11 +2,11 @@
 
 from abc import ABC, abstractmethod
 from typing import Any, Collection, Iterable, TYPE_CHECKING, Optional, Sequence
-from sqlcontroller.sqlquerybuilder import SqliteQueryBuilder
-from sqlcontroller.sqlfield import Field
+from sqlcontroller.querybuilder import SqliteQueryBuilder
+from sqlcontroller.field import Field
 
 if TYPE_CHECKING:
-    from sqlcontroller.sqlcontroller import AbstractSqlController, SqliteController
+    from sqlcontroller.controller import AbstractSqlController, SqliteController
 
 
 class DbTable(ABC):

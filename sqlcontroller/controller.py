@@ -3,10 +3,10 @@
 import sqlite3
 from abc import ABC, abstractmethod
 from typing import Any, Iterable, Optional
-from sqlcontroller.sqlvalidator import AbstractValidator, SqliteValidator
-from sqlcontroller.sqlquerybuilder import SqliteQueryBuilder
-from sqlcontroller.sqltable import DbTable, SqliteTable
-from sqlcontroller.sqlfield import Field
+from sqlcontroller.validator import AbstractValidator, SqliteValidator
+from sqlcontroller.querybuilder import SqliteQueryBuilder
+from sqlcontroller.table import DbTable, SqliteTable
+from sqlcontroller.field import Field
 
 
 class NonExistentTableError(Exception):

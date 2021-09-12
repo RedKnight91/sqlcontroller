@@ -3,7 +3,7 @@
 import re
 from abc import ABC
 from typing import Any, Iterable
-from sqlcontroller.sqlfield import Field
+from sqlcontroller.field import Field
 
 
 class InvalidAlphanumericError(Exception):
@@ -118,7 +118,8 @@ class SqliteValidity(AbstractValidity):
         )
 
         valid_constraints_str = lambda: (
-            val.valid_str(field.constraints) and val.valid_constraint(field.constraints)
+            val.valid_str(field.constraints)
+            and val.valid_constraint(field.constraints) # type: ignore
         )
 
         valid = (

@@ -3,7 +3,7 @@
 import re
 from abc import ABC
 from typing import Collection, Iterable, Optional
-from sqlcontroller.sqlfield import Field
+from sqlcontroller.field import Field
 
 
 class BaseSqlQueryBuilder(ABC):  # pylint: disable=too-few-public-methods
