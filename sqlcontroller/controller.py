@@ -84,6 +84,7 @@ class BaseSqlController(AbstractSqlController):
 
     def __enter__(self) -> "BaseSqlController":
         self.connection = self.connect_db()
+        self.connection.row_factory = sqlite3.Row
         self.cursor = self.get_cursor()
         return self
 

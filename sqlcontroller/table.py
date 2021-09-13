@@ -83,26 +83,29 @@ class SqliteTable(DbTable):
         query = SqliteQueryBuilder.build_insert_query(valuelists[0], fields)
         self._executemany(query, valuelists)
 
-    def get_row(self, clause: str) -> Any:
+    def get_row(self, clause: str = "", as_dict: bool = False) -> Any:
         """Get first matching row from a table"""
         query = f"select * from {{table}} {clause}"
         self._execute(query)
 
-        return self.controller.fetchone()
+        row = self.controller.fetchone()
+        return sqliterow_to_dict(row) if as_dict else sqliterow_to_tuple(row)
 
-    def get_rows(self, clause: str) -> list:
+    def get_rows(self, clause: str = "", as_dicts: bool = False) -> list:
         """Get all matching rows from a table"""
         query = f"select * from {{table}} {clause}"
         self._execute(query)
 
-        return self.controller.fetchall()
+        rows = self.controller.fetchall()
+        return sqliterows_to_dicts(rows) if as_dicts else sqliterows_to_tuples(rows)
 
-    def get_all_rows(self) -> list:
+    def get_all_rows(self, as_dicts: bool = False) -> list:
         """Get all rows from a table"""
         query = "select * from {table}"
         self._execute(query)
 
-        return self.controller.fetchall()
+        rows = self.controller.fetchall()
+        return sqliterows_to_dicts(rows) if as_dicts else sqliterows_to_tuples(rows)
 
     def update_rows(self, values: dict, clause: str = None) -> None:
         """Update row values in a table"""
@@ -122,3 +125,18 @@ class SqliteTable(DbTable):
         """Remove all matching rows from a table"""
         query = "delete from {table}"
         self._execute(query)
+
+
+def sqliterow_to_dict(row):
+    return dict(zip(row.keys(), tuple(row)))
+
+def sqliterow_to_tuple(row):
+    return tuple(row)
+
+def sqliterows_to_dicts(rows):
+    for row in rows:
+        yield sqliterow_to_dict(row)
+
+def sqliterows_to_tuples(rows):
+    for row in rows:
+        yield sqliterow_to_tuple(row)
