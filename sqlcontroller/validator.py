@@ -119,7 +119,7 @@ class SqliteValidity(AbstractValidity):
 
         valid_constraints_str = lambda: (
             val.valid_str(field.constraints)
-            and val.valid_constraint(field.constraints) # type: ignore
+            and val.valid_constraint(field.constraints)  # type: ignore
         )
 
         valid = (

@@ -36,15 +36,15 @@ class DbTable(ABC):
         """Add new row to a table"""
 
     @abstractmethod
-    def get_row(self, clause: str) -> None:
+    def get_row(self, clause: str = "", as_dict: bool = False) -> None:
         """Get first matching row from a table"""
 
     @abstractmethod
-    def get_rows(self, clause: str) -> list:
+    def get_rows(self, clause: str = "", as_dicts: bool = False) -> list:
         """Get all matching rows from a table"""
 
     @abstractmethod
-    def get_all_rows(self) -> list:
+    def get_all_rows(self, as_dicts: bool = False) -> list:
         """Get all rows from a table"""
 
     @abstractmethod
@@ -128,15 +128,22 @@ class SqliteTable(DbTable):
 
 
 def sqliterow_to_dict(row):
+    """Convert sqlite3.Row instance to dict"""
     return dict(zip(row.keys(), tuple(row)))
 
+
 def sqliterow_to_tuple(row):
+    """Convert sqlite3.Row instance to tuple"""
     return tuple(row)
 
+
 def sqliterows_to_dicts(rows):
+    """Convert sqlite3.Row instances to dicts"""
     for row in rows:
         yield sqliterow_to_dict(row)
 
+
 def sqliterows_to_tuples(rows):
+    """Convert sqlite3.Row instances to tuples"""
     for row in rows:
         yield sqliterow_to_tuple(row)
