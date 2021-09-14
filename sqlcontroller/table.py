@@ -36,6 +36,10 @@ class DbTable(ABC):
         """Add new row to a table"""
 
     @abstractmethod
+    def count_rows(self, clause: str = "") -> int:
+        """Count rows"""
+
+    @abstractmethod
     def get_row(self, clause: str = "", as_dict: bool = False) -> None:
         """Get first matching row from a table"""
 
@@ -60,6 +64,9 @@ class DbTable(ABC):
         """Remove all rows from a table"""
 
 
+IterFieldOpt = Optional[Iterable[Field]]
+
+
 class SqliteTable(DbTable):
     """Define methods to operate on database table"""
 
@@ -69,47 +76,51 @@ class SqliteTable(DbTable):
         self.name = name
         self.controller = controller
 
-    def add_row(
-        self, values: Collection, fields: Optional[Iterable[Field]] = None
-    ) -> None:
-        """Add row to table"""
+    def add_row(self, values: Collection, fields: IterFieldOpt = None) -> None:
         query = SqliteQueryBuilder.build_insert_query(values, fields)
         self._execute(query, values)
 
     def add_rows(
-        self, valuelists: Sequence[Collection], fields: Optional[Iterable[Field]] = None
+        self, valuelists: Sequence[Collection], fields: IterFieldOpt = None
     ) -> None:
-        """Add multiple rows to table"""
         query = SqliteQueryBuilder.build_insert_query(valuelists[0], fields)
         self._executemany(query, valuelists)
 
-    def get_row(self, clause: str = "", as_dict: bool = False) -> Any:
-        """Get first matching row from a table"""
-        query = f"select * from {{table}} {clause}"
+    def count_rows(self, clause: str = "") -> int:
+        query = f"select count(*) from {{table}} {clause}"
+        self._execute(query)
+        count = self.controller.fetchone()[0]
+        return count
+
+    def get_row(
+        self, fields: Iterable = None, clause: str = "", as_dict: bool = False
+    ) -> Any:
+        fields = iterable_to_fields(fields)
+        query = f"select {fields} from {{table}} {clause}"
         self._execute(query)
 
         row = self.controller.fetchone()
         return sqliterow_to_dict(row) if as_dict else sqliterow_to_tuple(row)
 
-    def get_rows(self, clause: str = "", as_dicts: bool = False) -> list:
-        """Get all matching rows from a table"""
-        query = f"select * from {{table}} {clause}"
+    def get_rows(
+        self, fields: Iterable = None, clause: str = "", as_dicts: bool = False
+    ) -> list:
+        fields = iterable_to_fields(fields)
+        query = f"select {fields} from {{table}} {clause}"
         self._execute(query)
 
         rows = self.controller.fetchall()
         return sqliterows_to_dicts(rows) if as_dicts else sqliterows_to_tuples(rows)
 
-    def get_all_rows(self, as_dicts: bool = False) -> list:
-        """Get all rows from a table"""
-        query = "select * from {table}"
+    def get_all_rows(self, fields: Iterable = None, as_dicts: bool = False) -> list:
+        fields = iterable_to_fields(fields)
+        query = f"select {fields} from {{table}}"
         self._execute(query)
 
         rows = self.controller.fetchall()
         return sqliterows_to_dicts(rows) if as_dicts else sqliterows_to_tuples(rows)
 
     def update_rows(self, values: dict, clause: str = None) -> None:
-        """Update row values in a table"""
-
         values_str = ",".join([f"{k} = {v}" for k, v in values.items()])
 
         clause = clause if clause else str()
@@ -117,14 +128,17 @@ class SqliteTable(DbTable):
         self._execute(query)
 
     def delete_rows(self, clause: str) -> None:
-        """Remove matching rows from a table"""
         query = f"delete from {{table}} {clause}"
         self._execute(query)
 
     def delete_all_rows(self) -> None:
-        """Remove all matching rows from a table"""
         query = "delete from {table}"
         self._execute(query)
+
+
+def iterable_to_fields(fields: Iterable[Any]) -> str:
+    fields = f"{', '.join(i for i in fields)}" if fields else "*"
+    return fields
 
 
 def sqliterow_to_dict(row):
