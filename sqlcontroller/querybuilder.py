@@ -45,7 +45,7 @@ class SqliteQueryBuilder(BaseSqlQueryBuilder):  # pylint: disable=too-few-public
 
     @staticmethod
     def build_query_clauses(
-        where: str, order: str = "", limit: int = 0, offset: int = 0
+        where: str = "", order: str = "", limit: int = 0, offset: int = 0
     ) -> str:
         """Build a query's clauses string"""
 

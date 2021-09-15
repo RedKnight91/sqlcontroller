@@ -40,16 +40,16 @@ class DbTable(ABC):
         """Count rows"""
 
     @abstractmethod
-    def get_row(self, clause: str = "", as_dict: bool = False) -> None:
+    def get_row(
+        self, fields: Iterable = None, clause: str = "", as_dict: bool = False
+    ) -> Any:
         """Get first matching row from a table"""
 
     @abstractmethod
-    def get_rows(self, clause: str = "", as_dicts: bool = False) -> list:
+    def get_rows(
+        self, fields: Iterable = None, clause: str = "", as_dicts: bool = False
+    ) -> list[Any]:
         """Get all matching rows from a table"""
-
-    @abstractmethod
-    def get_all_rows(self, as_dicts: bool = False) -> list:
-        """Get all rows from a table"""
 
     @abstractmethod
     def update_rows(self, values: dict, clause: str) -> None:
@@ -104,17 +104,9 @@ class SqliteTable(DbTable):
 
     def get_rows(
         self, fields: Iterable = None, clause: str = "", as_dicts: bool = False
-    ) -> list:
+    ) -> list[Any]:
         fields = iterable_to_fields(fields)
         query = f"select {fields} from {{table}} {clause}"
-        self._execute(query)
-
-        rows = self.controller.fetchall()
-        return sqliterows_to_dicts(rows) if as_dicts else sqliterows_to_tuples(rows)
-
-    def get_all_rows(self, fields: Iterable = None, as_dicts: bool = False) -> list:
-        fields = iterable_to_fields(fields)
-        query = f"select {fields} from {{table}}"
         self._execute(query)
 
         rows = self.controller.fetchall()
@@ -136,7 +128,8 @@ class SqliteTable(DbTable):
         self._execute(query)
 
 
-def iterable_to_fields(fields: Iterable[Any]) -> str:
+def iterable_to_fields(fields: Optional[Iterable[Any]]) -> str:
+    """Convert iterable to query fields string"""
     fields = f"{', '.join(i for i in fields)}" if fields else "*"
     return fields
 

@@ -170,7 +170,7 @@ class SqliteController(BaseSqlController):
 
     @staticmethod
     def build_query_clauses(
-        where: str, order: str = "", limit: int = 0, offset: int = 0
+        where: str = "", order: str = "", limit: int = 0, offset: int = 0
     ) -> str:
         """Build a query's clauses string"""
         return SqliteQueryBuilder.build_query_clauses(where, order, limit, offset)
