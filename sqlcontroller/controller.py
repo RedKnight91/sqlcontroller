@@ -8,6 +8,9 @@ from sqlcontroller.querybuilder import SqliteQueryBuilder
 from sqlcontroller.table import DbTable, SqliteTable
 from sqlcontroller.field import Field
 
+IterOpt = Optional[Iterable]
+IterIterOpt = Optional[Iterable[Iterable]]
+
 
 class NonExistentTableError(Exception):
     """Error for trying to retrieve a non-existent table"""
@@ -46,9 +49,7 @@ class AbstractSqlController(ABC):  # pragma: no cover
         """Get database cursor"""
 
     @abstractmethod
-    def execute(
-        self, query: str, table: str = None, values: Optional[Iterable] = None
-    ) -> Any:
+    def execute(self, query: str, table: str = None, values: IterOpt = None) -> Any:
         """Execute sql query with one value set"""
 
     @abstractmethod
@@ -56,7 +57,7 @@ class AbstractSqlController(ABC):  # pragma: no cover
         self,
         query: str,
         table: str = None,
-        valuelists: Optional[Iterable[Iterable]] = None,
+        valuesets: IterIterOpt = None,
     ) -> Any:
         """Execute sql query with many value sets"""
 
@@ -92,24 +93,32 @@ class BaseSqlController(AbstractSqlController):
         self.save_db()
         self.disconnect_db()
 
-    def execute(
-        self, query: str, table: str = None, values: Optional[Iterable] = None
-    ) -> Any:
+    def execute(self, query: str, table: str = None, values: IterOpt = None) -> Any:
         """Execute sql query with one value set"""
         values = values if values else []
         query = query.format(table=table)
-        return self.cursor.execute(query, values)
+
+        try:
+            return self.cursor.execute(query, values)
+        except sqlite3.Error as error:
+            print(f"Error: execute {query}")
+            raise error
 
     def executemany(
         self,
         query: str,
         table: str = None,
-        valuelists: Optional[Iterable[Iterable]] = None,
+        valuesets: IterIterOpt = None,
     ) -> Any:
         """Execute sql query with many value sets"""
-        valuelists = valuelists if valuelists else [[]]
+        valuesets = valuesets if valuesets else [[]]
         query = query.format(table=table)
-        return self.cursor.executemany(query, valuelists)
+
+        try:
+            return self.cursor.executemany(query, valuesets)
+        except sqlite3.Error as error:
+            print(f"Error: executemany {query}")
+            raise error
 
 
 class SqliteController(BaseSqlController):
