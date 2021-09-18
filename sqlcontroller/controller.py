@@ -49,7 +49,9 @@ class AbstractSqlController(ABC):  # pragma: no cover
         """Get database cursor"""
 
     @abstractmethod
-    def execute(self, query: str, table: str = None, values: IterOpt = None) -> Any:
+    def execute(
+        self, query: str, table: str = None, values: IterOpt = None
+    ) -> sqlite3.Cursor:
         """Execute sql query with one value set"""
 
     @abstractmethod
@@ -58,7 +60,7 @@ class AbstractSqlController(ABC):  # pragma: no cover
         query: str,
         table: str = None,
         valuesets: IterIterOpt = None,
-    ) -> Any:
+    ) -> sqlite3.Cursor:
         """Execute sql query with many value sets"""
 
     @abstractmethod
@@ -93,7 +95,9 @@ class BaseSqlController(AbstractSqlController):
         self.save_db()
         self.disconnect_db()
 
-    def execute(self, query: str, table: str = None, values: IterOpt = None) -> Any:
+    def execute(
+        self, query: str, table: str = None, values: IterOpt = None
+    ) -> sqlite3.Cursor:
         """Execute sql query with one value set"""
         values = values if values else []
         query = query.format(table=table)
@@ -109,7 +113,7 @@ class BaseSqlController(AbstractSqlController):
         query: str,
         table: str = None,
         valuesets: IterIterOpt = None,
-    ) -> Any:
+    ) -> sqlite3.Cursor:
         """Execute sql query with many value sets"""
         valuesets = valuesets if valuesets else [[]]
         query = query.format(table=table)
