@@ -86,9 +86,7 @@ class BaseSqlController(AbstractSqlController):
         self.database = database
 
     def __enter__(self) -> "BaseSqlController":
-        self.connection = self.connect_db()
-        self.connection.row_factory = sqlite3.Row
-        self.cursor = self.get_cursor()
+        self.connect_db()
         return self
 
     def __exit__(self, *_) -> None:
@@ -133,7 +131,9 @@ class SqliteController(BaseSqlController):
     def connect_db(self) -> sqlite3.Connection:
         """Connect to a database (create if non-existent)"""
         self.connection = sqlite3.connect(self.database)
-        return self.connection
+        self.connection.row_factory = sqlite3.Row
+
+        self.get_cursor()
 
     def disconnect_db(self) -> None:
         """Clear database connection"""
@@ -148,7 +148,6 @@ class SqliteController(BaseSqlController):
     def get_cursor(self) -> sqlite3.Cursor:
         """Get database cursor"""
         self.cursor = self.connection.cursor()
-        return self.cursor
 
     def has_table(self, name: str) -> bool:
         """Check if table exists"""
