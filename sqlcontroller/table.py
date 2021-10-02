@@ -2,13 +2,13 @@
 
 import sqlite3
 from abc import ABC, abstractmethod
-from typing import Any, Collection, Iterable, TYPE_CHECKING, Optional, Sequence
+from typing import Any, Collection, Generator, Iterable, TYPE_CHECKING, Optional, Sequence, Union
 from sqlcontroller.querybuilder import SqliteQueryBuilder
 from sqlcontroller.field import Field
+from sqlcontroller.row_conversion import DictOrTuple, convert_sqliterow, convert_sqliterows
 
 if TYPE_CHECKING:
     from sqlcontroller.controller import AbstractSqlController, SqliteController
-
 
 class DbTable(ABC):
     """Provide base for database table classes"""
@@ -29,6 +29,10 @@ class DbTable(ABC):
         return self.controller.executemany(query, self.name, valuelists)
 
     @abstractmethod
+    def query(self, query: str, as_dict: bool = False) -> list[Any]:
+        """Return the result of a direct query"""
+
+    @abstractmethod
     def add_row(
         self, values: Collection, fields: Optional[Iterable[Field]] = None
     ) -> None:
@@ -47,7 +51,7 @@ class DbTable(ABC):
     @abstractmethod
     def get_row(
         self, fields: Iterable[str] = None, clause: str = "", as_dict: bool = False
-    ) -> Any:
+    ) -> DictOrTuple:
         """Get first matching row from a table"""
 
     @abstractmethod
@@ -59,13 +63,13 @@ class DbTable(ABC):
     @abstractmethod
     def get_rows(
         self, fields: Iterable[str] = None, clause: str = "", as_dicts: bool = False
-    ) -> list[Any]:
+    ) -> Generator[DictOrTuple, None, None]:
         """Get all matching rows from a table"""
 
     @abstractmethod
     def get_rows_generator(
         self, fields: Iterable[str] = None, clause: str = "", as_dicts: bool = False
-    ) -> list[Any]:
+    ) -> Generator[DictOrTuple, None, None]:
         """Get generator for all matching rows from a table"""
 
     @abstractmethod
@@ -93,6 +97,11 @@ class SqliteTable(DbTable):
         self.name = name
         self.controller = controller
 
+    def query(self, query: str, as_dict: bool = False) -> list[Any]:
+        cursor = self._execute(query)
+        rows = convert_sqliterows(cursor.fetchall(), as_dict)
+        return rows
+
     def add_row(self, values: Collection, fields: IterFieldOpt = None) -> None:
         query = SqliteQueryBuilder.build_insert_query(values, fields)
         self._execute(query, values)
@@ -109,16 +118,6 @@ class SqliteTable(DbTable):
         count = self.controller.fetchone()[0]
         return count
 
-    def get_row(
-        self, fields: Iterable[str] = None, clause: str = "", as_dict: bool = False
-    ) -> Any:
-        fields = iterable_to_fields(fields)
-        query = f"select {fields} from {{table}} {clause}"
-        self._execute(query)
-
-        row = self.controller.fetchone()
-        return sqliterow_to_dict(row) if as_dict else sqliterow_to_tuple(row)
-
     def _get_rows_cursor(
         self, fields: Iterable[str] = None, clause: str = ""
     ) -> sqlite3.Cursor:
@@ -126,22 +125,29 @@ class SqliteTable(DbTable):
         query = f"select {fields} from {{table}} {clause}"
         return self._execute(query)
 
+    def get_row(
+        self, fields: Iterable[str] = None, clause: str = "", as_dict: bool = False
+    ) -> DictOrTuple:
+        cursor = self._get_rows_cursor(fields, clause)
+        row = convert_sqliterow(cursor.fetchone(), as_dict)
+
+        return row
+
     def get_rows(
         self, fields: Iterable[str] = None, clause: str = "", as_dicts: bool = False
-    ) -> list[Any]:
+    ) -> Generator[DictOrTuple, None, None]:
         cursor = self._get_rows_cursor(fields, clause)
-        rows = cursor.fetchall()
+        rows = convert_sqliterows(cursor.fetchall(), as_dicts)
 
-        converter = sqliterows_to_dicts if as_dicts else sqliterows_to_tuples
-        return converter(rows)
+        return rows
 
     def get_rows_generator(
         self, fields: Iterable[str] = None, clause: str = "", as_dicts: bool = False
-    ) -> list[Any]:
+    ) -> Generator[DictOrTuple, None, None]:
         cursor = self._get_rows_cursor(fields, clause)
+        rows = convert_sqliterows(cursor, as_dicts)
 
-        converter = sqliterows_to_dicts if as_dicts else sqliterows_to_tuples
-        return converter(cursor)
+        return rows
 
     def update_rows(self, values: dict, clause: str = None) -> None:
         values_str = ",".join([f"{k} = {v}" for k, v in values.items()])
@@ -163,25 +169,3 @@ def iterable_to_fields(fields: Optional[Iterable[Any]]) -> str:
     """Convert iterable to query fields string"""
     fields = f"{', '.join(i for i in fields)}" if fields else "*"
     return fields
-
-
-def sqliterow_to_dict(row):
-    """Convert sqlite3.Row instance to dict"""
-    return dict(zip(row.keys(), tuple(row)))
-
-
-def sqliterow_to_tuple(row):
-    """Convert sqlite3.Row instance to tuple"""
-    return tuple(row)
-
-
-def sqliterows_to_dicts(rows):
-    """Convert sqlite3.Row instances to dicts"""
-    for row in rows:
-        yield sqliterow_to_dict(row)
-
-
-def sqliterows_to_tuples(rows):
-    """Convert sqlite3.Row instances to tuples"""
-    for row in rows:
-        yield sqliterow_to_tuple(row)

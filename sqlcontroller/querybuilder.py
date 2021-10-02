@@ -20,7 +20,7 @@ class SqliteQueryBuilder(BaseSqlQueryBuilder):  # pylint: disable=too-few-public
         fields_strs = [" ".join([f.name, f.type, *f.constraints]) for f in fields]
         fields_str = ", ".join(fields_strs)
 
-        query = f"create table if not exists {{table}} ({fields_str});"
+        query = f"create table if not exists {{table}} ({fields_str})"
         return query
 
     @staticmethod
@@ -40,7 +40,7 @@ class SqliteQueryBuilder(BaseSqlQueryBuilder):  # pylint: disable=too-few-public
         qmarks = ",".join(["?"] * len(values))
         parts.append(f"({qmarks})")
 
-        query = " ".join(parts) + ";"
+        query = " ".join(parts)
         return query
 
     @staticmethod
@@ -54,16 +54,16 @@ class SqliteQueryBuilder(BaseSqlQueryBuilder):  # pylint: disable=too-few-public
 
         parts = []
         if where:
-            parts.append(f"where {where};")
+            parts.append(f"where {where}")
 
         if order:
-            parts.append(f"order by {order};")
+            parts.append(f"order by {order}")
 
         if limit:
-            parts.append(f"limit {limit};")
+            parts.append(f"limit {limit}")
 
         if offset:
-            parts.append(f"offset {offset};")
+            parts.append(f"offset {offset}")
 
         clause = " ".join(parts)
         return clause
